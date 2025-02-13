@@ -1,305 +1,562 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>MapLeaflet Advanced</title>
+    <title>Continenta World Map</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Fantasy Font (Cinzel) -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&display=swap" rel="stylesheet">
+
     <!-- Leaflet CSS/JS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
     <!-- Leaflet.draw CSS/JS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-    <!-- Leaflet.curve JS for bezier curves -->
-    <script src="https://unpkg.com/leaflet.curve@0.2.0/leaflet.curve.js"></script>
-    <!-- Leaflet.DistortableImage CSS/JS for draggable/resizable overlays -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-distortableimage@0.2.0/dist/leaflet.distortableimage.css" />
-    <script src="https://unpkg.com/leaflet-distortableimage@0.2.0/dist/leaflet.distortableimage.js"></script>
     <!-- Mouse position control -->
     <link rel="stylesheet" href="https://cdn.rawgit.com/ardhi/Leaflet.MousePosition/master/src/L.Control.MousePosition.css" />
     <script src="https://cdn.rawgit.com/ardhi/Leaflet.MousePosition/master/src/L.Control.MousePosition.js"></script>
+    <!-- interact.js for draggable/resizable text labels -->
+    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+
     <style>
       html, body, #map {
-        width: 100%; height: 100%; margin: 0; padding: 0; background: #1e1e1e;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        background: #1e1e1e;
       }
-      /* Dark cartography-style UI for panels */
+      /* Title Bar at top center */
+      #title-bar {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 10px 20px;
+        font-family: 'Cinzel', serif;
+        font-size: 26px;
+        color: #fff;
+        background: rgba(0,0,0,0.6);
+        border-radius: 5px;
+        z-index: 2000;
+      }
+      /* Dark UI panels */
       .panel {
-        position: absolute; background: #2d2d2d; color: #ddd; padding: 10px; border-radius: 5px;
-        box-shadow: 0 0 8px rgba(0,0,0,0.7); z-index: 1000; font-family: sans-serif;
+        position: absolute;
+        background: #2d2d2d;
+        color: #ddd;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 0 8px rgba(0,0,0,0.7);
+        z-index: 1000;
+        font-family: sans-serif;
       }
-      #marker-panel { top: 10px; left: 10px; width: 220px; }
-      #overlay-panel { top: 250px; left: 10px; width: 220px; }
-      #draw-panel { top: 490px; left: 10px; width: 220px; }
-      #layer-panel { top: 10px; right: 10px; width: 240px; max-height: 80%; overflow-y: auto; }
-      #save-load-panel { top: 650px; right: 10px; width: 240px; }
-      .panel h4 { margin: 0 0 8px; }
+      /* Marker panel at top-left */
+      #marker-panel {
+        top: 10px;
+        left: 10px;
+        width: 240px;
+      }
+      /* Wargame Tools panel: placed further down so it doesn't overlap label inputs */
+      #wargame-panel {
+        top: 440px; 
+        left: 10px;
+        width: 240px;
+      }
+      /* Border Brush panel: below Wargame Tools */
+      #draw-panel {
+        top: 620px;
+        left: 10px;
+        width: 240px;
+      }
+      /* Save/Load panel */
+      #save-load-panel {
+        top: 10px;
+        right: 10px;
+        width: 240px;
+      }
+      .panel h4 {
+        margin: 0 0 8px;
+      }
       .panel input, .panel button, .panel select {
-        width: 100%; margin-bottom: 8px; padding: 4px; border: 1px solid #555; background: #444; color: #ddd;
-      }
-      .layer-item { margin-bottom: 5px; border-bottom: 1px solid #555; padding-bottom: 5px; }
-      .layer-item button { margin-right: 2px; }
-      .custom-marker .marker-label {
-        background: #444; padding: 4px 8px; border: 1px solid #888; border-radius: 3px; font-size: 14px; color: #ddd;
+        width: 100%;
+        margin-bottom: 8px;
+        padding: 4px;
+        border: 1px solid #555;
+        background: #444;
+        color: #ddd;
       }
     </style>
   </head>
+
   <body>
+    <!-- Title Bar -->
+    <div id="title-bar">Continenta World Map</div>
+
+    <!-- The Map -->
     <div id="map"></div>
+
     <!-- Marker Panel -->
     <div id="marker-panel" class="panel">
       <h4>Marker Tool</h4>
-      <input type="text" id="label-text" placeholder="Label text">
-      <input type="text" id="label-description" placeholder="Description (optional)">
-      <input type="text" id="custom-icon" placeholder="Icon URL or emoji">
-      <input type="file" id="icon-file" accept="image/png">
-      <button onclick="startAddingMarker()">Add Marker (Click on map)</button>
+      <!-- Pin Marker (default emoji "📍") -->
+      <div>
+        <button onclick="startAddingMarker()">Add Pin Marker (Click on map)</button>
+        <input type="text" id="pin-marker-description" placeholder="Description (optional)">
+      </div>
+      <hr>
+      <!-- Custom Marker Upload -->
+      <div>
+        <input type="password" id="custom-marker-password" placeholder="Password for custom marker">
+        <input type="file" id="custom-marker-file" accept="image/*">
+      </div>
+      <hr>
+      <!-- Text Label Marker -->
+      <div>
+        <input type="text" id="label-text" placeholder="Label text">
+        <input type="text" id="label-description" placeholder="Description (optional)">
+        <button onclick="startAddingTextLabel()">Add Text Label (Click on map)</button>
+      </div>
     </div>
-    <!-- Overlay Panel -->
-    <div id="overlay-panel" class="panel">
-      <h4>Overlay Tool</h4>
-      <input type="file" id="overlay-file" accept="image/png">
-      <button onclick="uploadOverlay()">Upload New Overlay</button>
+
+    <!-- Wargame Tools Panel -->
+    <div id="wargame-panel" class="panel">
+      <h4>Wargame Tools</h4>
+      <select id="wargame-marker-type">
+        <option value="siege">Siege Engine</option>
+        <option value="castle">Castle</option>
+        <option value="troop">Troop</option>
+      </select>
+      <button onclick="startAddingWargameMarker()">Add Wargame Marker</button>
+      <hr>
+      <!-- Doodle Mode Button -->
+      <button onclick="toggleDoodleMode()">Toggle Doodle Mode</button>
+      <p style="font-size:12px; margin:0;">(Click &amp; drag on the map to doodle)</p>
     </div>
-    <!-- Draw Panel -->
+
+    <!-- Border Brush Panel -->
     <div id="draw-panel" class="panel">
       <h4>Border Brush</h4>
       <input type="color" id="border-color" value="#ff0000">
       <button onclick="startDrawingBorder()">Draw Border</button>
       <button onclick="editBorders()">Edit Borders</button>
-      <button onclick="smoothBorders()">Smooth Border</button>
+      <button onclick="confirmEdits()">Confirm Edits</button>
     </div>
-    <!-- Layer Panel -->
-    <div id="layer-panel" class="panel">
-      <h4>Layers</h4>
-      <div id="layers-list"></div>
-    </div>
+
     <!-- Save/Load Panel -->
     <div id="save-load-panel" class="panel">
       <h4>Save / Load</h4>
-      <button onclick="saveLayers()">Save Layers</button>
-      <button onclick="loadLayers()">Load Layers</button>
+      <button onclick="exportLayers()">Export Layers (JSON)</button>
+      <input type="file" id="import-file" accept=".json" onchange="importLayers(this.files)">
     </div>
+
     <script>
-      // Map setup with simple CRS
+      // ======================
+      // MAP SETUP
+      // ======================
       var mapExtent = [0, -8436, 14999, 0];
-      var mapMinZoom = 0, mapMaxZoom = 4, mapMaxResolution = 2, mapMinResolution = Math.pow(2, mapMaxZoom) * mapMaxResolution;
+      var mapMinZoom = 0, mapMaxZoom = 4, mapMaxResolution = 2;
+      var mapMinResolution = Math.pow(2, mapMaxZoom) * mapMaxResolution;
       var crs = L.CRS.Simple;
       crs.transformation = new L.Transformation(1, -mapExtent[0], -1, mapExtent[3]);
       crs.scale = function(zoom) { return Math.pow(2, zoom) / mapMinResolution; };
       crs.zoom = function(scale) { return Math.log(scale * mapMinResolution) / Math.LN2; };
-      var map = new L.Map('map', { maxZoom: mapMaxZoom, minZoom: mapMinZoom, crs: crs });
-      // Base Layer (added to layerList as a base layer)
+
+      var map = new L.Map('map', {
+        maxZoom: mapMaxZoom,
+        minZoom: mapMinZoom,
+        crs: crs
+      });
+
+      // Base Layer
       var baseLayer = L.tileLayer('{z}/{x}/{y}.png', {
-        minZoom: mapMinZoom, maxZoom: mapMaxZoom, tileSize: L.point(512,512),
-        attribution: '<a href="https://www.maptiler.com/engine/">Rendered with MapTiler Engine</a>, non-commercial use only',
-        noWrap: true, tms: false
+        minZoom: mapMinZoom,
+        maxZoom: mapMaxZoom,
+        tileSize: L.point(512,512),
+        attribution: '<a href="https://www.maptiler.com/engine/">Rendered with MapTiler Engine</a>, non‑commercial use only',
+        noWrap: true,
+        tms: false
       }).addTo(map);
-      map.fitBounds([ crs.unproject(L.point(mapExtent[2], mapExtent[3])), crs.unproject(L.point(mapExtent[0], mapExtent[1])) ]);
+
+      map.fitBounds([
+        crs.unproject(L.point(mapExtent[2], mapExtent[3])),
+        crs.unproject(L.point(mapExtent[0], mapExtent[1]))
+      ]);
+
       L.control.mousePosition().addTo(map);
-      
-      // Global layers
+
+      // Global Layers
       var customMarkerLayer = L.layerGroup().addTo(map);
       var drawnBordersLayer = L.featureGroup().addTo(map);
-      var overlayLayers = []; // For distortable overlays
-      // Layer list for UI (base layer is fixed at bottom)
-      var layerList = [
-        { id: 'baseLayer', name: 'Base Layer', layer: baseLayer, fixed: true },
-        { id: 'customMarkers', name: 'Custom Markers', layer: customMarkerLayer },
-        { id: 'drawnBorders', name: 'Borders', layer: drawnBordersLayer }
-      ];
-      overlayLayers.forEach(function(ol) { layerList.push(ol); });
-      updateLayerPanel();
-      
-      // Handle custom marker icon file upload
-      var uploadedIconDataURL = null;
-      document.getElementById("icon-file").addEventListener("change", function(e) {
-        var file = e.target.files[0];
-        if (file) {
-          var reader = new FileReader();
-          reader.onload = function(evt) { uploadedIconDataURL = evt.target.result; };
-          reader.readAsDataURL(file);
-        }
-      });
-      
-      // Update layer panel UI
-      function updateLayerPanel() {
-        var container = document.getElementById("layers-list");
-        container.innerHTML = "";
-        layerList.forEach(function(item, index) {
-          var div = document.createElement("div");
-          div.className = "layer-item";
-          var chk = document.createElement("input");
-          chk.type = "checkbox";
-          chk.checked = map.hasLayer(item.layer);
-          chk.onchange = function() { chk.checked ? map.addLayer(item.layer) : map.removeLayer(item.layer); };
-          div.appendChild(chk);
-          var span = document.createElement("span");
-          span.innerHTML = " " + item.name + (item.fixed ? " (Fixed)" : "");
-          div.appendChild(span);
-          if (!item.fixed) {
-            if (index > 0) {
-              var upBtn = document.createElement("button");
-              upBtn.innerHTML = "↑";
-              upBtn.onclick = function() {
-                var temp = layerList[index - 1];
-                layerList[index - 1] = item;
-                layerList[index] = temp;
-                item.layer.bringToFront();
-                updateLayerPanel();
-              };
-              div.appendChild(upBtn);
-            }
-            if (index < layerList.length - 1) {
-              var downBtn = document.createElement("button");
-              downBtn.innerHTML = "↓";
-              downBtn.onclick = function() {
-                var temp = layerList[index + 1];
-                layerList[index + 1] = item;
-                layerList[index] = temp;
-                item.layer.bringToFront();
-                updateLayerPanel();
-              };
-              div.appendChild(downBtn);
-            }
-          }
-          container.appendChild(div);
-        });
-      }
-      
-      // Marker tool: start adding marker on map click
+      var wargameOverlayLayer = L.layerGroup().addTo(map);
+
+      // ======================
+      // MARKER TOOLS
+      // ======================
       function startAddingMarker() {
-        var labelText = document.getElementById("label-text").value;
-        var description = document.getElementById("label-description").value;
-        var customIconInput = document.getElementById("custom-icon").value;
-        if (!labelText) { alert("Please enter a label text"); return; }
-        alert("Click on the map to add the marker.");
+        var description = document.getElementById("pin-marker-description").value;
+        var customFileInput = document.getElementById("custom-marker-file");
+        var passwordInput = document.getElementById("custom-marker-password").value;
+
+        if (customFileInput.files.length > 0) {
+          if (passwordInput === "admin13") {
+            var file = customFileInput.files[0];
+            var reader = new FileReader();
+            reader.onload = function(evt) {
+              alert("Click on the map to add the pin marker with your custom image.");
+              map.once('click', function(event) {
+                addPinMarkerUsingCustom(event.latlng, description, evt.target.result);
+              });
+            };
+            reader.readAsDataURL(file);
+            customFileInput.value = "";
+            document.getElementById("custom-marker-password").value = "";
+            return;
+          } else {
+            alert("Incorrect password for custom marker image. Using default marker.");
+            customFileInput.value = "";
+            document.getElementById("custom-marker-password").value = "";
+          }
+        }
+        alert("Click on the map to add the pin marker.");
         map.once('click', function(event) {
-          addCustomMarker(event.latlng, labelText, description, customIconInput);
+          addPinMarkerUsingDefault(event.latlng, description);
         });
       }
-      function addCustomMarker(latlng, labelText, description, customIconInput) {
-        var markerOptions = {};
-        if (uploadedIconDataURL) {
-          markerOptions.icon = L.icon({ iconUrl: uploadedIconDataURL, iconSize: [32,32], iconAnchor: [16,32] });
-          uploadedIconDataURL = null;
-          document.getElementById("icon-file").value = "";
-        } else if (customIconInput) {
-          if (customIconInput.startsWith("http")) {
-            markerOptions.icon = L.icon({ iconUrl: customIconInput, iconSize: [32,32], iconAnchor: [16,32] });
-          } else {
-            markerOptions.icon = L.divIcon({ html: '<div style="font-size:24px;">' + customIconInput + '</div>', className: '', iconSize: [32,32], iconAnchor: [16,16] });
-          }
-        } else {
-          markerOptions.icon = L.divIcon({ html: '<div class="marker-label">' + labelText + '</div>', className: 'custom-marker', iconSize: [100,40] });
+
+      function addPinMarkerUsingCustom(latlng, description, imageData) {
+        var markerOptions = {
+          icon: L.icon({
+            iconUrl: imageData,
+            iconSize: [32,32],
+            iconAnchor: [16,32]
+          })
+        };
+        var marker = L.marker(latlng, markerOptions);
+        var popupContent = '<strong>📍</strong>' + (description ? '<br/>' + description : '');
+        marker.bindPopup(popupContent);
+        marker.addTo(customMarkerLayer).openPopup();
+        saveMarkerToServer({ type: 'pin', lat: latlng.lat, lng: latlng.lng, popup: popupContent });
+      }
+
+      function addPinMarkerUsingDefault(latlng, description) {
+        var markerOptions = {
+          icon: L.divIcon({
+            html: '<div style="font-size:24px;">📍</div>',
+            className: '',
+            iconSize: [32,32],
+            iconAnchor: [16,32]
+          })
+        };
+        var marker = L.marker(latlng, markerOptions);
+        var popupContent = '<strong>📍</strong>' + (description ? '<br/>' + description : '');
+        marker.bindPopup(popupContent);
+        marker.addTo(customMarkerLayer).openPopup();
+        saveMarkerToServer({ type: 'pin', lat: latlng.lat, lng: latlng.lng, popup: popupContent });
+      }
+
+      // Resizable Text Label Marker using interact.js
+      function startAddingTextLabel() {
+        var labelText = document.getElementById("label-text").value;
+        if (!labelText) {
+          alert("Please enter a label text.");
+          return;
         }
+        var description = document.getElementById("label-description").value;
+        alert("Click on the map to add the text label.");
+        map.once('click', function(event) {
+          addTextLabelMarker(event.latlng, labelText, description);
+        });
+      }
+
+      function addTextLabelMarker(latlng, labelText, description) {
+        var markerOptions = {
+          icon: L.divIcon({
+            html: '<div class="marker-label" style="border:1px dashed #888; padding:4px;">' + labelText + '</div>',
+            className: 'custom-marker',
+            iconSize: [100,40]
+          })
+        };
         var marker = L.marker(latlng, markerOptions);
         var popupContent = '<strong>' + labelText + '</strong>' + (description ? '<br/>' + description : '');
         marker.bindPopup(popupContent);
         marker.addTo(customMarkerLayer).openPopup();
+
+        // Make the label resizable after it appears
+        setTimeout(function(){
+          var el = marker.getElement();
+          if(el){
+            interact(el).resizable({
+              edges: { left: true, right: true, bottom: true, top: true },
+              listeners: {
+                move (event) {
+                  let { x, y } = event.target.dataset;
+                  x = (parseFloat(x) || 0) + event.deltaRect.left;
+                  y = (parseFloat(y) || 0) + event.deltaRect.top;
+                  Object.assign(event.target.style, {
+                    width: event.rect.width + 'px',
+                    height: event.rect.height + 'px',
+                    transform: `translate(${x}px, ${y}px)`
+                  });
+                  event.target.dataset.x = x;
+                  event.target.dataset.y = y;
+                }
+              },
+              modifiers: [
+                interact.modifiers.restrictSize({
+                  min: { width: 50, height: 20 }
+                })
+              ]
+            });
+          }
+        }, 500);
+
+        saveMarkerToServer({ type: 'text', lat: latlng.lat, lng: latlng.lng, popup: popupContent });
       }
-      
-      // Overlay tool: upload overlay image and add as distortable overlay that fills map bounds
-      function uploadOverlay() {
-        var fileInput = document.getElementById("overlay-file");
-        var file = fileInput.files[0];
-        if (!file) { alert("Select an overlay PNG file."); return; }
-        var reader = new FileReader();
-        reader.onload = function(evt) {
-          var dataURL = evt.target.result;
-          var bounds = map.getBounds();
-          var overlay = L.distortableImageOverlay(dataURL, bounds, { interactive: true }).addTo(map);
-          var overlayId = 'overlay_' + (overlayLayers.length + 1);
-          overlayLayers.push({ id: overlayId, layer: overlay });
-          layerList.push({ id: overlayId, name: 'Overlay ' + overlayLayers.length, layer: overlay });
-          updateLayerPanel();
-          fileInput.value = "";
+
+      // ======================
+      // WARGAME TOOLS
+      // ======================
+      var wargameMarkerIcons = {
+        siege: "🛡️",
+        castle: "🏰",
+        troop: "⚔️"
+      };
+
+      function startAddingWargameMarker() {
+        var selected = document.getElementById("wargame-marker-type").value;
+        alert("Click on the map to place a " + selected + " marker.");
+        map.once('click', function(event) {
+          addWargameMarker(event.latlng, selected);
+        });
+      }
+
+      function addWargameMarker(latlng, type) {
+        var iconChar = wargameMarkerIcons[type] || "❓";
+        var markerOptions = {
+          icon: L.divIcon({
+            html: '<div style="font-size:24px;">' + iconChar + '</div>',
+            className: '',
+            iconSize: [32,32],
+            iconAnchor: [16,32]
+          })
         };
-        reader.readAsDataURL(file);
+        var marker = L.marker(latlng, markerOptions);
+        marker.bindPopup("<strong>" + type.toUpperCase() + "</strong>");
+        marker.addTo(wargameOverlayLayer).openPopup();
       }
-      
-      // Draw tool: initialize Leaflet.draw for borders (editable and smoothable)
+
+      // ======================
+      // DOODLING SCRIPT
+      // ======================
+      var doodleLayer = L.featureGroup().addTo(map);
+      var isDoodling = false;
+      var drawingLine = null;
+
+      function toggleDoodleMode() {
+        isDoodling = !isDoodling;
+        // Toggle map dragging/zoom
+        if (isDoodling) {
+          // Disable map dragging/zoom while doodling
+          map.dragging.disable();
+          map.touchZoom.disable();
+          map.doubleClickZoom.disable();
+          map.scrollWheelZoom.disable();
+          map.boxZoom.disable();
+          map.keyboard.disable();
+          alert("Doodle mode ON. Map locked. Click & drag on the map to draw.");
+        } else {
+          // Re-enable map dragging/zoom
+          map.dragging.enable();
+          map.touchZoom.enable();
+          map.doubleClickZoom.enable();
+          map.scrollWheelZoom.enable();
+          map.boxZoom.enable();
+          map.keyboard.enable();
+          alert("Doodle mode OFF. Map unlocked.");
+          if (drawingLine) {
+            // finalize any partial line
+            drawingLine = null;
+          }
+        }
+      }
+
+      // Listen for mouse events to freehand-draw
+      map.on('mousedown', function(e) {
+        if (isDoodling) {
+          // Use the border-color as the doodle color
+          var brushColor = document.getElementById("border-color").value;
+          drawingLine = L.polyline([], { color: brushColor, weight: 3 }).addTo(doodleLayer);
+          drawingLine.addLatLng(e.latlng);
+        }
+      });
+      map.on('mousemove', function(e) {
+        if (isDoodling && drawingLine) {
+          drawingLine.addLatLng(e.latlng);
+        }
+      });
+      map.on('mouseup', function(e) {
+        if (isDoodling && drawingLine) {
+          drawingLine.addLatLng(e.latlng);
+          drawingLine = null; // finalize line
+        }
+      });
+
+      // ======================
+      // BORDER (DRAW) TOOLS
+      // ======================
       var drawControl = new L.Control.Draw({
-        draw: { circle: false, marker: false, rectangle: false, polyline: false, circlemarker: false,
-          polygon: { allowIntersection: false, showArea: true, drawError: { color: '#e1e100', message: '<strong>Error:<strong> shape not allowed' } }
+        draw: {
+          circle: false,
+          marker: false,
+          rectangle: false,
+          polyline: false,
+          circlemarker: false,
+          polygon: {
+            allowIntersection: false,
+            showArea: true,
+            drawError: { color: '#e1e100', message: '<strong>Error:</strong> shape not allowed' }
+          }
         },
         edit: { featureGroup: drawnBordersLayer }
       });
       map.addControl(drawControl);
+
       map.on(L.Draw.Event.CREATED, function(e) {
         var layerDrawn = e.layer;
         var color = document.getElementById("border-color").value;
         layerDrawn.setStyle({ color: color, weight: 3 });
         drawnBordersLayer.addLayer(layerDrawn);
-        updateLayerPanel();
       });
-      function editBorders() {
-        // Enable editing on drawn borders
-        drawnBordersLayer.eachLayer(function(layer) { layer.editing.enable(); });
+
+      function startDrawingBorder() {
+        var polygonDrawer = new L.Draw.Polygon(map, drawControl.options.draw.polygon);
+        polygonDrawer.enable();
       }
-      // Smooth borders using a simple Chaikin's algorithm
-      function smoothBorders() {
+
+      function editBorders() {
+        if (
+          drawControl &&
+          drawControl._toolbars &&
+          drawControl._toolbars.edit &&
+          drawControl._toolbars.edit._modes &&
+          drawControl._toolbars.edit._modes.edit
+        ) {
+          drawControl._toolbars.edit._modes.edit.handler.enable();
+        } else {
+          alert("Edit mode not available.");
+        }
+      }
+
+      function confirmEdits() {
         drawnBordersLayer.eachLayer(function(layer) {
-          if (layer instanceof L.Polygon) {
-            var coords = layer.getLatLngs()[0];
-            var newCoords = [];
-            for (var i = 0; i < coords.length - 1; i++) {
-              var p0 = coords[i], p1 = coords[i+1];
-              var Q = L.latLng(0.75 * p0.lat + 0.25 * p1.lat, 0.75 * p0.lng + 0.25 * p1.lng);
-              var R = L.latLng(0.25 * p0.lat + 0.75 * p1.lat, 0.25 * p0.lng + 0.75 * p1.lng);
-              newCoords.push(Q, R);
-            }
-            newCoords.push(newCoords[0]);
-            layer.setLatLngs([newCoords]);
+          if (layer.editing && layer.editing.enabled()) {
+            layer.editing.disable();
           }
         });
+        if (
+          drawControl &&
+          drawControl._toolbars &&
+          drawControl._toolbars.edit &&
+          drawControl._toolbars.edit._modes &&
+          drawControl._toolbars.edit._modes.edit &&
+          drawControl._toolbars.edit._modes.edit.handler.enabled()
+        ) {
+          drawControl._toolbars.edit._modes.edit.handler.disable();
+        }
       }
-      
-      // Save and load layers to/from localStorage
-      function saveLayers() {
+
+      // ======================
+      // EXPORT / IMPORT LAYERS
+      // ======================
+      function exportLayers() {
         var data = {};
         data.customMarkers = [];
         customMarkerLayer.eachLayer(function(marker) {
-          data.customMarkers.push({ lat: marker.getLatLng().lat, lng: marker.getLatLng().lng, popup: marker.getPopup().getContent() });
+          data.customMarkers.push({
+            lat: marker.getLatLng().lat,
+            lng: marker.getLatLng().lng,
+            popup: marker.getPopup().getContent()
+          });
         });
         data.drawnBorders = drawnBordersLayer.toGeoJSON();
-        data.overlays = [];
-        overlayLayers.forEach(function(ol) {
-          var bounds = ol.layer.getBounds();
-          data.overlays.push({ dataURL: ol.layer._url || ol.layer.options.url || ol.layer._image.src, bounds: bounds.toBBoxString() });
-        });
-        localStorage.setItem("mapLayers", JSON.stringify(data));
-        alert("Layers saved.");
+        // Doodles: we also export them
+        data.doodles = doodleLayer.toGeoJSON();
+
+        var jsonStr = JSON.stringify(data);
+        var blob = new Blob([jsonStr], { type: "application/json" });
+        var link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "map_layers.json";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       }
-      function loadLayers() {
-        var data = JSON.parse(localStorage.getItem("mapLayers"));
-        if (!data) { alert("No saved layers found."); return; }
+
+      function importLayers(fileList) {
+        if (!fileList || fileList.length === 0) {
+          alert("No file selected.");
+          return;
+        }
+        var file = fileList[0];
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var jsonStr = e.target.result;
+          try {
+            var data = JSON.parse(jsonStr);
+            loadLayersFromData(data);
+          } catch (err) {
+            alert("Error parsing JSON: " + err);
+          }
+        };
+        reader.readAsText(file);
+        document.getElementById("import-file").value = "";
+      }
+
+      function loadLayersFromData(data) {
         customMarkerLayer.clearLayers();
         drawnBordersLayer.clearLayers();
-        overlayLayers.forEach(function(ol) { map.removeLayer(ol.layer); });
-        overlayLayers = [];
-        layerList = layerList.filter(function(item) { return item.fixed || item.id !== undefined && item.id.indexOf('overlay_') === -1; });
+        doodleLayer.clearLayers();
+
+        // Load markers
         data.customMarkers.forEach(function(m) {
           var marker = L.marker([m.lat, m.lng]);
           marker.bindPopup(m.popup);
           marker.addTo(customMarkerLayer);
         });
+        // Load borders
         L.geoJSON(data.drawnBorders).eachLayer(function(layer) {
           drawnBordersLayer.addLayer(layer);
         });
-        data.overlays.forEach(function(olData, idx) {
-          var b = olData.bounds.split(',').map(Number);
-          var bounds = L.latLngBounds(L.latLng(b[1], b[0]), L.latLng(b[3], b[2]));
-          var overlay = L.distortableImageOverlay(olData.dataURL, bounds, { interactive: true }).addTo(map);
-          var overlayId = 'overlay_' + (idx + 1);
-          overlayLayers.push({ id: overlayId, layer: overlay });
-          layerList.push({ id: overlayId, name: 'Overlay ' + (idx + 1), layer: overlay });
-        });
-        updateLayerPanel();
-        alert("Layers loaded.");
+        // Load doodles
+        if (data.doodles) {
+          L.geoJSON(data.doodles).eachLayer(function(layer) {
+            doodleLayer.addLayer(layer);
+          });
+        }
+        alert("Layers imported from file.");
       }
-      
-      // Update layer panel initially
-      updateLayerPanel();
+
+      // ======================
+      // SAVE MARKER TO SERVER (placeholder)
+      // ======================
+      function saveMarkerToServer(markerData) {
+        // Example: send marker data to a server endpoint
+        fetch("save_marker.php", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(markerData)
+        })
+        .then(response => response.text())
+        .then(result => {
+          console.log("Marker saved to server:", result);
+        })
+        .catch(error => {
+          console.error("Error saving marker to server:", error);
+        });
+      }
     </script>
   </body>
 </html>
